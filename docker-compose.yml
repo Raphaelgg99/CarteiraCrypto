@@ -1,0 +1,42 @@
+services:
+  # Serviço 1: O Banco de Dados MySQL
+  db:
+    image: mysql:8.0
+    container_name: portfolio-db
+    environment:
+      - MYSQL_DATABASE=portfolio_db
+      - MYSQL_ROOT_PASSWORD=root # Senha de root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # Healthcheck específico para MySQL
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Serviço 2: Sua Aplicação Spring Boot
+  app:
+    build: .
+    container_name: portfolio-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # ATENÇÃO AQUI: Mudamos para jdbc:mysql e a porta 3306
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/portfolio_db?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      # Forçar o dialeto do MySQL para evitar erros do Hibernate
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
+      # Suas configs de JWT
+      - SECURITY_CONFIG_PREFIX=Bearer
+      - SECURITY_CONFIG_KEY=SuaChaveSuperSecretaParaProducaoQueDeveSerLonga
+      - SECURITY_CONFIG_EXPIRATION=3600000
+
+volumes:
+  mysql_data:
